@@ -10,7 +10,6 @@ ruff==0.0.284
 prettytable==3.9.0
 lxml==4.9.3
 html5lib==1.1
-bs4==0.0.1
 altair==4.2.2
 async-generator==1.10
 attrs==21.4.0
@@ -39,7 +38,6 @@ importlib-metadata==6.1.0
 Jinja2==3.1.2
 jsonschema==4.17.3
 kiwisolver==1.4.2
-lxml==4.8.0
 markdown-it-py==2.2.0
 MarkupSafe==2.1.2
 matplotlib==3.5.1
