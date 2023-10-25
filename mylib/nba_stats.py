@@ -219,7 +219,7 @@ def team_ranker(
         while run:
             try:
                 team_name = team_df.loc[team_df.id == team_id]["abbreviation"].iloc[0]
-                print(team_name)
+                # print(team_name)
                 if mode == 0:
                     df = get_team_game_log(team_id, season, season_type)
                     team_log_dict[team_name] = df

@@ -24,7 +24,8 @@ def query(
     """Query the database"""
     if not sql_conn:
         sql_conn = sqlite3.connect(db_name)
-        print(f"Database {db_name} Connected to.")
+        if mode == 1:
+            print(f"Database {db_name} Connected to.")
 
     cursor = sql_conn.cursor()
 
@@ -38,10 +39,10 @@ def query(
         print_pretty_table(cursor)
     else:
         cursor.execute(query_str)
-        print(f"QUERY: {query_str}")
-        print("Query results:")
 
         if mode == 1:
+            print(f"QUERY: {query_str}")
+            print("Query results:")
             print_pretty_table(cursor)
 
     results = cursor.fetchall()
