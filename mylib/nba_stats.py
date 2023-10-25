@@ -819,6 +819,8 @@ def run_stats(date, historical_start_date, historical_end_date, season):
                 score_diff_probability_df.round(2), headers="keys", tablefmt="pretty"
             )
         )
+    
+    return resy
 
 
 if __name__ == "__main__":
