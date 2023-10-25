@@ -1,7 +1,7 @@
 """Query the database"""
-
 import sqlite3
 from prettytable import PrettyTable
+import pandas as pd
 
 
 def print_pretty_table(cursor):
@@ -14,16 +14,21 @@ def print_pretty_table(cursor):
 
     print(x)
 
-def query(query_str:str='', db_name:str='GroceryDB', 
-          sql_conn:sqlite3.Connection=None) -> str:
+
+def query(
+    query_str: str = "",
+    db_name: str = "GroceryDB",
+    sql_conn: sqlite3.Connection = None,
+    mode: int = 1,
+) -> str:
     """Query the database"""
     if not sql_conn:
         sql_conn = sqlite3.connect(db_name)
         print(f"Database {db_name} Connected to.")
-    
+
     cursor = sql_conn.cursor()
-    
-    if query_str == '':
+
+    if query_str == "":
         cursor.execute("SELECT * FROM GroceryDB LIMIT 5")
         print("Top 5 rows of the GroceryDB table:")
         print_pretty_table(cursor)
@@ -35,8 +40,14 @@ def query(query_str:str='', db_name:str='GroceryDB',
         cursor.execute(query_str)
         print(f"QUERY: {query_str}")
         print("Query results:")
-        print_pretty_table(cursor)
 
+        if mode == 1:
+            print_pretty_table(cursor)
+
+    results = cursor.fetchall()
     sql_conn.close()
-    
-    return "Success"
+    df = pd.DataFrame(
+        results, columns=[description[0] for description in cursor.description]
+    )
+
+    return df
