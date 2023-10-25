@@ -2,7 +2,7 @@
 ### By Rakeen Rouf
 [![CI](https://github.com/nogibjj/nba-cli-tool/actions/workflows/cicd.yml/badge.svg)](https://github.com/nogibjj/nba-cli-tool/actions/workflows/cicd.yml)
 
-This project serves as a comprehensive showcase of a custom Command Line Interface (CLI) tool tailored for seamless data management & statistical analysis for NBA sports betting. The CLI can be easily installed using PIP, and can help the user quickly get a glimpse of some high quality statistics regarding upcoming (or past) NBA basketball games. On every run, the CLI makes sure to first update a local DB with only missing information. It then find out all the scheduled games for the provided date, and produces some useful statistics that can be used to make informed NBA sports trading decisions.  
+This project is a robust demonstration of a customized Command Line Interface (CLI) tool designed for effortless data handling and statistical analysis in NBA sports betting. The CLI can be easily installed using PIP, allowing users to swiftly access high-quality statistics for upcoming or past NBA basketball games. During each run, the CLI prioritizes the update of a local Sqlite Database by adding only missing information, thereby substantially enhancing processing efficiency. It subsequently identifies all scheduled games for the specified date and generates valuable statistics that can inform sound NBA sports trading choices.
 
 
 ## Installation
