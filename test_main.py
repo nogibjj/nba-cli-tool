@@ -10,6 +10,7 @@ from mylib.updateDb import update_db
 from mylib.query import query
 from mylib.extract import extract
 import os
+import pandas as pd
 
 
 @pytest.fixture
@@ -85,14 +86,13 @@ def test_update_db(setup_database):
     setup_database.close()
 
 
-def test_query(setup_database):
+def test_query(setup_database):    
     assert (
-        len(query(
+        isinstance(query(
             db_name="test.db",
             sql_conn=setup_database,
             query_str="SELECT * FROM test_table WHERE count_products = 11",
-        ))
-        >= 1
+        ), pd.DataFrame)
     )
 
     os.remove("test.db")
