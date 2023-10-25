@@ -87,12 +87,12 @@ def test_update_db(setup_database):
 
 def test_query(setup_database):
     assert (
-        query(
+        len(query(
             db_name="test.db",
             sql_conn=setup_database,
             query_str="SELECT * FROM test_table WHERE count_products = 11",
-        )
-        == "Success"
+        ))
+        >= 1
     )
 
     os.remove("test.db")

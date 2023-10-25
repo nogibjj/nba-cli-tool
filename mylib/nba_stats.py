@@ -5,14 +5,14 @@ from scipy.stats import norm, skew, kurtosis
 import pandas as pd
 from requests.exceptions import ReadTimeout
 from time import sleep
-from basketballReferenceLinks import BasketBallReferenceLinks
+from mylib.basketballReferenceLinks import BasketBallReferenceLinks
 from datetime import datetime, timedelta
 import calendar
 import click
 import re
 import os
-from transform_load import create_and_load_db
-from query import query
+from mylib.transform_load import create_and_load_db
+from mylib.query import query
 import warnings
 from tabulate import tabulate
 
