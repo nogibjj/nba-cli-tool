@@ -71,7 +71,6 @@ def get_all_games_current_season(season_start_date, season_end_date):
     end_dt = datetime(year=ey, month=em, day=ed)
 
     # Getting info on current DataBase
-    os.chdir("data")
     if not os.path.isfile("AllGamesCurrentSeasonDb"):
         df = get_all_games_cs_helper(start_dt, end_dt, stat_link)
         df.to_csv("AllGamesCurrentSeasonDb.csv", index=False)
@@ -79,7 +78,6 @@ def get_all_games_current_season(season_start_date, season_end_date):
             dataset="AllGamesCurrentSeasonDb.csv", db_name="AllGamesCurrentSeasonDb"
         )
 
-        return df
     else:
         query_str = """SELECT Max(Date) FROM AllGamesCurrentSeasonDb"""
         max_date = query(
@@ -100,14 +98,14 @@ def get_all_games_current_season(season_start_date, season_end_date):
             start_dt = max_date - timedelta(days=1)
             df = get_all_games_cs_helper(start_dt, end_dt, stat_link)
 
-        query_str = """SELECT * FROM AllGamesCurrentSeasonDb 
-        WHERE Date >= '{}' and Date <= '{}'""".format(
-            start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d")
-        )
+    query_str = """SELECT * FROM AllGamesCurrentSeasonDb 
+    WHERE Date >= '{}' and Date <= '{}'""".format(
+        start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d"))
 
-        df = query(query_str=query_str, db_name="AllGamesCurrentSeasonDb", mode=2)
+    df = query(query_str=query_str, db_name="AllGamesCurrentSeasonDb", mode=2)
+    df = df.drop_duplicates()
+    df = df[df["PTS_1"].notna()]
 
-    os.chdir("..")
     return df
 
 

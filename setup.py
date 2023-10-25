@@ -1,12 +1,11 @@
 from setuptools import setup, find_packages
 
-# read the requirements.txt file and use it to install dependencies
-with open('requirements.txt') as f:
-    install_requires = f.read().splitlines()
-
+install_requires = ['click==8.1.3', 'requests==2.31.0', 'tabulate==0.8.9', 
+                    'nba-api==1.3.1', 'pandas==2.0.3', 'prettytable==3.9.0',
+                    'lxml==4.9.3', 'html5lib==1.1', 'bs4==0.0.1', 'scipy==1.10.1']
 
 setup(
-    name='nba-stats',
+    name='nba-stats-dragon',
     description='NBA CLI Tool to display Head to Head Stats.',
     packages=find_packages(),
     author='Rakeen Rouf (rmr327)',
@@ -15,6 +14,6 @@ setup(
     nbastats=mylib.nba_stats:run_stats
     """,
     install_requires=install_requires,
-    version='0.0.1',
+    version='0.0.5',
     url='https://github.com/nogibjj/nba-cli-tool',
 )
