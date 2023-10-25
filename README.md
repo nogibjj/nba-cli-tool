@@ -51,7 +51,7 @@ Here are the available statistics for the nba-stats-dragon:
 - `Head to Head Games`: Table of all games played so far in the season.
 - `Head to Head Stats`: Some descriptive statistics based on above table.
 - `Head to Head Score Difference Probability`: Score difference probabilites based on the above table (Please account for Skew & Kurtosis). 
-- `Scaled Points Stats`: Some descriptive statistics based on matches withing the Historical Start & End days. Each observation used in this dataset was scaled by the relative strength of the opponent. This was done so that performance in each game can be comparable regardless of the opponent. The scaling is based on custom team ranking calculations.
+- `Scaled Points Stats`: Some descriptive statistics based on matches between the Historical Start & End days. Each observation used in this dataset was scaled by the relative strength of the opponent. This was done so that performance in each game can be comparable regardless of the opponent and across games. The scaling is based on custom team ranking calculations.
 
 ## Future Work
 
