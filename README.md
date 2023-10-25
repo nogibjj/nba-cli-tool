@@ -2,7 +2,7 @@
 ### By Rakeen Rouf
 [![CI](https://github.com/nogibjj/nba-cli-tool/actions/workflows/cicd.yml/badge.svg)](https://github.com/nogibjj/nba-cli-tool/actions/workflows/cicd.yml)
 
-This project is a robust demonstration of a customized Command Line Interface (CLI) tool designed for effortless data handling and statistical analysis in NBA sports betting. The CLI can be easily installed using PIP, allowing users to swiftly access high-quality statistics for upcoming or past NBA basketball games. During each run, the CLI prioritizes the update of a local Sqlite Database by adding only missing information, thereby substantially enhancing processing efficiency. It subsequently identifies all scheduled games for the specified date and generates valuable statistics that can inform sound NBA sports trading choices.
+This project is a demonstration of a robust Command Line Interface (CLI) tool designed for effortless data handling and statistical analysis in NBA sports betting. The CLI can be easily installed using PIP, allowing users to swiftly access high-quality statistics for upcoming or past NBA basketball games. During each run, the CLI prioritizes the update of a local Sqlite Database by adding only missing information, thereby substantially enhancing processing efficiency. It subsequently identifies all scheduled games for the specified date and generates valuable statistics that can inform sound NBA sports trading choices.
 
 
 ## Installation
@@ -61,7 +61,7 @@ Here are the available statistics for the nba-stats-dragon:
 
 ## License
 
-Nba-stats-deagon CLI tool is licensed under the MIT License. See the LICENSE file for more information.
+Nba-stats-dragon CLI tool is licensed under the MIT License. See the LICENSE file for more information.
 
 ## Contributing
 
