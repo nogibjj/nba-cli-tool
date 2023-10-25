@@ -53,10 +53,8 @@ def create_and_load_db(
     c.execute(f"DROP TABLE IF EXISTS {db_name}")
     print(f"Excuted: DROP TABLE IF EXISTS {db_name}")
     # create the table.
-    s = ', '.join([f'{name} {column_types[i]}' for i, name in enumerate(column_names)])
-    query = \
-    f"CREATE TABLE {db_name} "\
-    f"({s})"
+    s = ", ".join([f"{name} {column_types[i]}" for i, name in enumerate(column_names)])
+    query = f"CREATE TABLE {db_name} " f"({s})"
     print(f"Excuted: {query}")
     c.execute(query)
     # insert the data

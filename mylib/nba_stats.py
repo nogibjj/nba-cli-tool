@@ -14,6 +14,8 @@ import os
 from transform_load import create_and_load_db
 from query import query
 import warnings
+from tabulate import tabulate
+
 pd.options.mode.chained_assignment = None  # suppress the warning
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -800,7 +802,23 @@ def run_stats(date, historical_start_date, historical_end_date, season):
             }
         )
 
-        print(21)
+        print(f"\n {team__1} vs {team__2} \n")
+        print("Head to Head Games \n")
+        print(tabulate(head_to_head_df.round(2), headers="keys", tablefmt="pretty"))
+        print("\n Head to Head Stats \n")
+        print(
+            tabulate(head_to_head_stats_df.round(2), headers="keys", tablefmt="pretty")
+        )
+        print("\n Scaled Points (w.r.t opponent strength) Stats \n")
+        print(
+            tabulate(scaled_points_stats_df.round(2), headers="keys", tablefmt="pretty")
+        )
+        print("\n Head to Head Score Difference Probability (Account for Skew & Kurtosis) \n")
+        print(
+            tabulate(
+                score_diff_probability_df.round(2), headers="keys", tablefmt="pretty"
+            )
+        )
 
 
 if __name__ == "__main__":
