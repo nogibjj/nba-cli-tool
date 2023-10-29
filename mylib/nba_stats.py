@@ -3,14 +3,14 @@ from nba_api.stats.static import teams  # players
 from nba_api.stats.endpoints import teamgamelog  # shotchartdetail
 from scipy.stats import norm, skew, kurtosis
 import pandas as pd
-from basketballReferenceLinks import BasketBallReferenceLinks
+from mylib.basketballReferenceLinks import BasketBallReferenceLinks
 from datetime import datetime, timedelta
 import calendar
 import click
 import re
 import os
-from transform_load import create_and_load_db
-from query import query
+from mylib.transform_load import create_and_load_db
+from mylib.query import query
 import warnings
 from tabulate import tabulate
 
@@ -157,7 +157,7 @@ def get_vs_points(team_1_df, team_2_df):
     return df
 
 
-def get_pts_stats(df, last_n_games=1000, mode=1):
+def get_pts_stats(df, last_n_games=1000, mode=1, df_2=None):
     df = df.iloc[:last_n_games, :]
 
     if mode == 1:
@@ -175,19 +175,20 @@ def get_pts_stats(df, last_n_games=1000, mode=1):
             "kurtosis": kurtosis_,
         }
     elif mode == 2:
+        df_2 = df_2.iloc[:last_n_games, :]
         mean_1 = df.PTS_1_scaled.mean()
         stdv_1 = df.PTS_1_scaled.std()
         median_1 = df.PTS_1_scaled.median()
         skew_1 = skew(df.PTS_1_scaled.values, axis=0, bias=True)
         kurtosis_1 = kurtosis(df.PTS_1_scaled.values, axis=0, bias=True)
-        mean_2 = df.PTS_2_scaled.mean()
-        stdv_2 = df.PTS_2_scaled.std()
-        median_2 = df.PTS_2_scaled.median()
-        skew_2 = skew(df.PTS_2_scaled.values, axis=0, bias=True)
-        kurtosis_2 = kurtosis(df.PTS_2_scaled.values, axis=0, bias=True)
-        mean_3 = df.PTS_DIFF.mean()
-        stdv_3 = df.PTS_DIFF.std()
-        median_3 = df.PTS_DIFF.median()
+        mean_2 = df_2.PTS_2_scaled.mean()
+        stdv_2 = df_2.PTS_2_scaled.std()
+        median_2 = df_2.PTS_2_scaled.median()
+        skew_2 = skew(df_2.PTS_2_scaled.values, axis=0, bias=True)
+        kurtosis_2 = kurtosis(df_2.PTS_2_scaled.values, axis=0, bias=True)
+        mean_3 = "NA"
+        stdv_3 = "NA"
+        median_3 = "NA"
     else:
         mean_1 = df.PTS_1.mean()
         stdv_1 = df.PTS_1.std()
@@ -244,15 +245,23 @@ def team_ranker(team_df, season):
 
     # Getting Win Percentage
     df = dfs[0]
-    df["Team"] = df["Eastern Conference"].str.slice(0, -4).str.strip()
+    # assign team name from team_df if full_name is in Eastern Conference
+    df["Team"] = df["Eastern Conference"].apply(
+        lambda r: [name for name in team_df.full_name.values if name in r][0]
+    )
     df_2 = dfs[1]
-    df_2["Team"] = df_2["Western Conference"].str.slice(0, -4).str.strip()
+    df_2["Team"] = df_2["Western Conference"].apply(
+        lambda r: [name for name in team_df.full_name.values if name in r][0]
+    )
     df = pd.concat([df, df_2])
     df = df.rename(columns={"W/L%": "W_PCT"})
     df = df[["Team", "W_PCT"]]
 
     # Getting all other stats
-    df_3 = dfs[4]
+    df_3 = dfs[4].iloc[:-1, :]
+    df_3["Team"] = df_3["Team"].apply(
+        lambda r: [name for name in team_df.full_name.values if name in r][0]
+    )
     df_3 = df_3.rename(
         columns={
             "FG%": "FG_PCT",
@@ -327,6 +336,37 @@ def team_ranker(team_df, season):
     return easter_teams, western_teams
 
 
+def get_team_points(df, team_name):
+    team_df = df.loc[
+        (df["Visitor_Neutral"] == team_name) | (df["Home_Neutral"] == team_name)
+    ]
+    team_df["points"] = team_df.apply(
+        lambda r: r["PTS_1"] if r["Home_Neutral"] == team_name else r["PTS"],
+        axis=1,
+    )
+
+    team_df["opponent"] = team_df.apply(
+        lambda r: r["Visitor_Neutral"]
+        if r["Home_Neutral"] == team_name
+        else r["Home_Neutral"],
+        axis=1,
+    )
+
+    return team_df[["Date", "Visitor_Neutral", "Home_Neutral", "points", "opponent"]]
+
+
+def scale_points(team_df, merge_df, num, team_names):
+    # merging abbreviation for opponent
+    team_names = team_names[["full_name", "abbreviation"]]
+    team_df = team_df.merge(team_names, left_on="opponent", right_on="full_name")
+    team_df[f"PTS_{num}_scaled"] = team_df.apply(
+        lambda r: r["points"]
+        * (merge_df.loc[merge_df.abbreviation == r["abbreviation"]][0].iloc[0] / 100),
+        axis=1,
+    )
+    return team_df
+
+
 def get_stats(team_1, team_2, to_merge_df, alternate_source, team_names):
 
     team_1_full_name = team_names.loc[team_names.abbreviation == team_1].full_name.iloc[
@@ -347,10 +387,14 @@ def get_stats(team_1, team_2, to_merge_df, alternate_source, team_names):
     ]
 
     try:
-        # todo: condier team name changes
+        team_1_df = get_team_points(alternate_source, team_1_full_name)
+        team_2_df = get_team_points(alternate_source, team_2_full_name)
+        team_1_df = scale_points(team_1_df, to_merge_df, 1, team_names)
+        team_1_df = team_1_df.sort_values(by="Date", ascending=False)
+        team_2_df = scale_points(team_2_df, to_merge_df, 2, team_names)
+        team_2_df = team_2_df.sort_values(by="Date", ascending=False)
+
         vs_df_2 = vs_df_2.rename(columns={"Date": "GAME_DATE"})
-        points_scale_t1 = to_merge_df.loc[to_merge_df.abbreviation == team_1][0].iloc[0]
-        points_scale_t2 = to_merge_df.loc[to_merge_df.abbreviation == team_2][0].iloc[0]
 
         # Have to call PTS twice because of the way the data is structured
         vs_df_2["PTS_11"] = vs_df_2.apply(
@@ -363,10 +407,8 @@ def get_stats(team_1, team_2, to_merge_df, alternate_source, team_names):
         )
         vs_df_2["PTS_1"] = vs_df_2["PTS_11"]
         vs_df_2.drop(columns=["PTS_11"], inplace=True)
-
         vs_df_2["PTS_DIFF"] = vs_df_2["PTS_1"] - vs_df_2["PTS_2"]
-        vs_df_2["PTS_1_scaled"] = vs_df_2["PTS_1"] * (points_scale_t1 / 100)
-        vs_df_2["PTS_2_scaled"] = vs_df_2["PTS_2"] * (points_scale_t2 / 100)
+
         vs_df_2["WL_1"] = vs_df_2.apply(
             lambda r: "W" if r["PTS_DIFF"] > 0 else "L", axis=1
         )
@@ -375,11 +417,7 @@ def get_stats(team_1, team_2, to_merge_df, alternate_source, team_names):
         )
         vs_df_2["PTS_DIFF"] = vs_df_2["PTS_DIFF"].abs()
         vs_df_2["GAME_DATE"] = pd.to_datetime(vs_df_2.GAME_DATE)
-        # vs_df["GAME_DATE"] = pd.to_datetime(vs_df.GAME_DATE)
         vs_df_2["MATCHUP"] = vs_df_2["Visitor_Neutral"] + "@" + vs_df_2["Home_Neutral"]
-        # vs_df_2 = vs_df_2.loc[~vs_df_2.GAME_DATE.isin(vs_df.GAME_DATE.values)][
-        #     vs_df_2["PTS"].notna()
-        # ]
         vs_df_2 = vs_df_2[vs_df_2["PTS"].notna()]
         vs_df_2 = vs_df_2.sort_values(by="GAME_DATE", ascending=False)
 
@@ -415,17 +453,21 @@ def get_stats(team_1, team_2, to_merge_df, alternate_source, team_names):
         total_points_vs = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
         vs_pts_stats = pd.DataFrame()
 
-    team_stats = get_pts_stats(vs_df_2, mode=2)
+    team_stats = get_pts_stats(team_1_df, df_2=team_2_df, mode=2)
     team_1_pts_stats, team_2_pts_stats = get_team_stats_helper(team_stats)
-    team_stats_last_5 = get_pts_stats(vs_df_2, last_n_games=5, mode=2)
+    team_stats_last_5 = get_pts_stats(team_1_df, df_2=team_2_df, last_n_games=5, mode=2)
     team_1_pts_stats_last_5, team_2_pts_stats_last_5 = get_team_stats_helper(
         team_stats_last_5
     )
-    team_stats_last_10 = get_pts_stats(vs_df_2, last_n_games=10, mode=2)
+    team_stats_last_10 = get_pts_stats(
+        team_1_df, df_2=team_2_df, last_n_games=10, mode=2
+    )
     team_1_pts_stats_last_10, team_2_pts_stats_last_10 = get_team_stats_helper(
         team_stats_last_10
     )
-    team_stats_last_15 = get_pts_stats(vs_df_2, last_n_games=15, mode=2)
+    team_stats_last_15 = get_pts_stats(
+        team_1_df, df_2=team_2_df, last_n_games=15, mode=2
+    )
     team_1_pts_stats_last_15, team_2_pts_stats_last_15 = get_team_stats_helper(
         team_stats_last_15
     )
@@ -529,27 +571,27 @@ def validate_season(ctx, param, value):
     "--date",
     "-d",
     type=click.DateTime(formats=["%Y-%m-%d"]),
-    default="2023-10-27",
+    default="2022-11-16",
     help="Date to run the statistics for.",
 )
 @click.option(
     "--historical_start_date",
     "-hsd",
-    default="2023-10-01",
+    default="2022-10-01",
     type=click.DateTime(formats=["%Y-%m-%d"]),
     help="Start date for historical game data.",
 )
 @click.option(
     "--historical_end_date",
     "-hed",
-    default="2023-10-30",
+    default="2023-03-30",
     type=click.DateTime(formats=["%Y-%m-%d"]),
     help="End date for historical game data",
 )
 @click.option(
     "--season",
     "-s",
-    default="2023-24",
+    default="2022-23",
     help="Season to run the statistics for. (YYYY-YY)",
     type=click.STRING,
     callback=validate_season,
@@ -577,6 +619,28 @@ def run_stats(date, historical_start_date, historical_end_date, season):
     to_merge__df = pd.concat([easter__teams_, western__teams_])
     to_merge__df = (to_merge__df / 98) * 100
     to_merge__df = to_merge__df.reset_index()
+
+    print("\n Custom Team Rankings \n")
+    print(" Eastern Teams \n")
+    easter__teams_ = easter__teams_.sort_values(ascending=False)
+    western__teams_ = western__teams_.sort_values(ascending=False)
+    print(
+        tabulate(
+            pd.DataFrame(easter__teams_).round(2),
+            headers=["Team", "Custom Ranking"],
+            tablefmt="pretty",
+        ),
+        "\n",
+    )
+    print(" Western Teams \n")
+    print(
+        tabulate(
+            pd.DataFrame(western__teams_).round(2),
+            headers=["Team", "Custom Ranking"],
+            tablefmt="pretty",
+        ),
+        "\n",
+    )
 
     games = get_games_on_date(
         games_df=basketball_ref_games,
