@@ -30,8 +30,8 @@ nbastats --help
 nbastats -d 2022-11-16 -hsd 2022-10-01 -hed 2023-03-30
 ```
 
-![Alt text](https://user-images.githubusercontent.com/36940292/277930572-6208603b-7254-4aa2-9086-2baa4cad8f0f.png)
-![Alt text](https://user-images.githubusercontent.com/36940292/277930719-c463a49a-1f37-4de8-a951-c619f924d3e8.png)
+![Alt text](https://user-images.githubusercontent.com/36940292/278879142-43148513-fdd1-49e6-a288-12fed073eaca.png)
+![Alt text](https://user-images.githubusercontent.com/36940292/278879208-9b47b05c-26c2-47b6-9fd3-30062a987649.png)
 
 ## Options
 

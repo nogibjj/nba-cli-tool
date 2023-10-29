@@ -14,6 +14,6 @@ setup(
     nbastats=mylib.nba_stats:run_stats
     """,
     install_requires=install_requires,
-    version='0.1.2',
+    version='0.1.3',
     url='https://github.com/nogibjj/nba-cli-tool',
 )
