@@ -832,7 +832,6 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         head_to_head_df["pts_diff_kurtosis"] = None
         try:
             c = "Last head to head point differences skew"
-            print(head_to_head_df)
             head_to_head_df["pts_diff_skew"].iloc[-1] = data[c]
             c = "Lst head to head point differences kurtosis"
             head_to_head_df["pts_diff_kurtosis"].iloc[-1] = data[c]
