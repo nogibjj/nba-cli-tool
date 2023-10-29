@@ -13,6 +13,7 @@ def create_and_load_db(
     dataset: str = "data/GroceryDB_IgFPro.csv",
     db_name: str = "GroceryDB",
     sql_conn: sqlite3.Connection = None,
+    mode="w",
 ) -> sqlite3.Connection:
     """ "function to create a local SQLite3 database and load data into it.
     The data is transformed from a CSV file."""
@@ -49,14 +50,18 @@ def create_and_load_db(
         conn = sql_conn
 
     c = conn.cursor()  # create a cursor
-    # drop the table if it exists
-    c.execute(f"DROP TABLE IF EXISTS {db_name}")
-    print(f"Excuted: DROP TABLE IF EXISTS {db_name}")
-    # create the table.
-    s = ", ".join([f"{name} {column_types[i]}" for i, name in enumerate(column_names)])
-    query = f"CREATE TABLE {db_name} " f"({s})"
-    print(f"Excuted: {query}")
-    c.execute(query)
+    if mode == "w":
+        # drop the table if it exists
+        c.execute(f"DROP TABLE IF EXISTS {db_name}")
+        print(f"Excuted: DROP TABLE IF EXISTS {db_name}")
+        # create the table.
+        s = ", ".join(
+            [f"{name} {column_types[i]}" for i, name in enumerate(column_names)]
+        )
+        query = f"CREATE TABLE {db_name} " f"({s})"
+        print(f"Excuted: {query}")
+        c.execute(query)
+
     # insert the data
     c.executemany(
         f"INSERT INTO {db_name} VALUES" f"({', '.join(['?']*len(column_names))})",

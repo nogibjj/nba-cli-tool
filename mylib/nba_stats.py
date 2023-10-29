@@ -1,3 +1,6 @@
+"""Code to calculate NBA statistics for a given date.
+
+By Rakeen Rouf"""
 import numpy as np
 from nba_api.stats.static import teams  # players
 from nba_api.stats.endpoints import teamgamelog  # shotchartdetail
@@ -82,6 +85,7 @@ def get_all_games_current_season(season_start_date, season_end_date):
         max_date = query(
             query_str=query_str, db_name="AllGamesCurrentSeasonDb", mode=2
         ).iloc[0][0]
+        max_date
         max_date = datetime.strptime(max_date, "%Y-%m-%d")
 
         query_str = """SELECT MIN(Date) FROM AllGamesCurrentSeasonDb"""
@@ -93,9 +97,16 @@ def get_all_games_current_season(season_start_date, season_end_date):
         if end_dt < max_date:
             pass
         elif start_dt <= max_date:
-            # drop duplicate data
             start_dt = max_date - timedelta(days=1)
-            df = get_all_games_cs_helper(start_dt, end_dt, stat_link)
+
+        # todo: worry about sparse dates (intermittent)
+        df = get_all_games_cs_helper(start_dt, end_dt, stat_link)
+        df.to_csv("AllGamesCurrentSeasonDb.csv", index=False)
+        create_and_load_db(
+            dataset="AllGamesCurrentSeasonDb.csv",
+            db_name="AllGamesCurrentSeasonDb",
+            mode="a",
+        )
 
     query_str = """SELECT * FROM AllGamesCurrentSeasonDb 
     WHERE Date >= '{}' and Date <= '{}'""".format(
@@ -103,8 +114,6 @@ def get_all_games_current_season(season_start_date, season_end_date):
     )
 
     df = query(query_str=query_str, db_name="AllGamesCurrentSeasonDb", mode=2)
-    df = df.drop_duplicates()
-    df = df[df["PTS_1"] != ""]
 
     return df
 
@@ -602,11 +611,8 @@ def run_stats(date, historical_start_date, historical_end_date, season):
     print(f"Running stats for games on: {date}")
     print(f"Historical Matches Start Date: {historical_start_date}")
     print(f"Historical Matches End Date: {historical_end_date}")
+    print(f"Season: {season}")
 
-    basketball_ref_games = get_all_games_current_season(
-        historical_start_date.strftime("%Y-%m-%d"),
-        historical_end_date.strftime("%Y-%m-%d"),
-    )
     seaso_n_ = season
 
     teams_ = teams.get_teams()
@@ -641,12 +647,19 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         ),
         "\n",
     )
+    basketball_ref_games = get_all_games_current_season(
+        historical_start_date.strftime("%Y-%m-%d"),
+        historical_end_date.strftime("%Y-%m-%d"),
+    )
 
     games = get_games_on_date(
         games_df=basketball_ref_games,
         date=date.strftime("%Y-%m-%d"),
         abbreviation_df=team_abbreviation,
     )
+
+    basketball_ref_games = basketball_ref_games.drop_duplicates()
+    basketball_ref_games = basketball_ref_games[basketball_ref_games["PTS_1"] != ""]
 
     # todo: make conference weighted scores for inter conference matches
     # todo: make back tester
@@ -817,10 +830,14 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         )
         head_to_head_df["pts_diff_skew"] = None
         head_to_head_df["pts_diff_kurtosis"] = None
-        c = "Last head to head point differences skew"
-        head_to_head_df["pts_diff_skew"].iloc[-1] = data[c]
-        c = "Lst head to head point differences kurtosis"
-        head_to_head_df["pts_diff_kurtosis"].iloc[-1] = data[c]
+        try:
+            c = "Last head to head point differences skew"
+            print(head_to_head_df)
+            head_to_head_df["pts_diff_skew"].iloc[-1] = data[c]
+            c = "Lst head to head point differences kurtosis"
+            head_to_head_df["pts_diff_kurtosis"].iloc[-1] = data[c]
+        except IndexError:
+            pass
 
         ii = "last_head_to_head_stats"
         head_to_head_stats_df = pd.DataFrame(
