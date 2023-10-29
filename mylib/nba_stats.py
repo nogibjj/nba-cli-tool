@@ -17,10 +17,20 @@ from mylib.query import query
 import warnings
 from tabulate import tabulate
 import urllib
+import logging
 
 pd.options.mode.chained_assignment = None  # suppress the warning
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+logger = logging.getLogger(__name__)
+# Create a file handler to write log messages to a file
+data_logger = logging.FileHandler("nba_stats_data.log")
+# Create a formatter to format log messages
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+# Add the formatter to the file handler
+data_logger.setFormatter(formatter)
+# Add the file handler to the logger
+logger.addHandler(data_logger)
 
 
 def get_team_id(teams_dictionary, team_):
@@ -45,13 +55,9 @@ def get_all_games_cs_helper(start_dt, end_dt, stat_link):
 
     cur_dt = start_dt
     # probably a better way to do this
-    if cur_dt.month > 9:
-        year_ = cur_dt.year + 1
-    else:
-        year_ = cur_dt.year
     df = pd.DataFrame()
     while cur_dt <= end_dt:
-        0
+        year_ = cur_dt.year
         if cur_dt.month > 9:
             if year_ == cur_dt.year:
                 year_ = cur_dt.year + 1
@@ -62,7 +68,10 @@ def get_all_games_cs_helper(start_dt, end_dt, stat_link):
         try:
             df = pd.concat([df, pd.read_html(link)[0]])
         except urllib.error.HTTPError:
-            print("No games for {} {}".format(month_dict[cur_dt.month], year_))
+            # Set the logging level to INFO
+            logger.setLevel(logging.INFO)
+            # Log the message
+            logger.info("No games for {} {}".format(month_dict[cur_dt.month], year_))
 
         days_in_month = calendar.monthrange(year_, cur_dt.month)[1]
         cur_dt += timedelta(days_in_month)
@@ -98,7 +107,6 @@ def get_all_games_current_season(season_start_date, season_end_date):
         max_date = query(
             query_str=query_str, db_name="AllGamesCurrentSeasonDb", mode=2
         ).iloc[0][0]
-        max_date
         max_date = datetime.strptime(max_date, "%Y-%m-%d")
 
         query_str = """SELECT MIN(Date) FROM AllGamesCurrentSeasonDb"""
@@ -115,6 +123,8 @@ def get_all_games_current_season(season_start_date, season_end_date):
             start_dt = max_date
         elif end_dt < min_date:
             end_dt = min_date
+        else:
+            change = False
 
         if change:
             df = get_all_games_cs_helper(start_dt, end_dt, stat_link)
@@ -643,8 +653,17 @@ def run_stats(date, historical_start_date, historical_end_date, season):
     to_merge__df = (to_merge__df / 98) * 100
     to_merge__df = to_merge__df.reset_index()
 
-    print("\n Custom Team Rankings \n")
-    print(" Eastern Teams \n")
+    print("\n╔════════════════════════════════════════════════════════════╗")
+    print(
+        "║ \U0001F3C0 \U0001F3C0 \U0001F3C0 \U0001F3C0"
+        " \U0001F3C0 \U0001F3C0 \U0001F3C0 "
+        "Custom Team Rankings \U0001F3C0 \U0001F3C0 \U0001F3C0"
+        " \U0001F3C0 \U0001F3C0"
+        " \U0001F3C0║"
+    )
+    print("╚════════════════════════════════════════════════════════════╝\n")
+    print("\U00002728  Eastern Teams \U00002728")
+    print("--------------------\n")
     easter__teams_ = easter__teams_.sort_values(ascending=False)
     western__teams_ = western__teams_.sort_values(ascending=False)
     print(
@@ -655,7 +674,8 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         ),
         "\n",
     )
-    print(" Western Teams \n")
+    print("\U00002728  Western Teams \U00002728")
+    print("--------------------\n")
     print(
         tabulate(
             pd.DataFrame(western__teams_).round(2),
@@ -669,15 +689,15 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         historical_end_date.strftime("%Y-%m-%d"),
     )
 
-    print(basketball_ref_games.head(), historical_end_date, historical_end_date)
-
     games = get_games_on_date(
         games_df=basketball_ref_games,
         date=date.strftime("%Y-%m-%d"),
         abbreviation_df=team_abbreviation,
     )
 
-    basketball_ref_games = basketball_ref_games.drop_duplicates()
+    basketball_ref_games = basketball_ref_games.drop_duplicates(
+        subset=["Date", "Visitor_Neutral", "Home_Neutral"]
+    )
     basketball_ref_games = basketball_ref_games[basketball_ref_games["PTS_1"] != ""]
 
     # todo: make conference weighted scores for inter conference matches
@@ -919,20 +939,33 @@ def run_stats(date, historical_start_date, historical_end_date, season):
             }
         )
 
-        print(f"\n {team__1} vs {team__2} \n")
-        print("Head to Head Games \n")
+        print(
+            "\n╔══════════════════════════════════════════════════════════════════════════════════════════════╗"
+        )
+        print(
+            f"║\U0001F4B0 {team__1.upper():^35} vs {team__2.upper():^35}           "
+            "    \U0001F4B0║"
+        )
+        print(
+            "╚══════════════════════════════════════════════════════════════════════════════════════════════╝\n"
+        )
+        print("\U0001F525 Table 2.1: Head to Head Games")
+        print("-------------------------------\n")
         print(tabulate(head_to_head_df.round(2), headers="keys", tablefmt="pretty"))
-        print("\n Head to Head Stats \n")
+        print("\n \U0001F525 Table 2.2: Head to Head Stats")
+        print("------------------------------------\n")
         print(
             tabulate(head_to_head_stats_df.round(2), headers="keys", tablefmt="pretty")
         )
-        print("\n Scaled Points (w.r.t opponent strength) Stats \n")
+        print("\n \U0001F525 Table 2.3: Scaled Points (w.r.t opponent strength) Stats")
+        print("--------------------------------------------------------------\n")
         print(
             tabulate(scaled_points_stats_df.round(2), headers="keys", tablefmt="pretty")
         )
         print(
-            "\n Head to Head Score Difference Probability "
+            "\n \U0001F525 Table 2.4: Head to Head Score Difference Probability "
             "(Account for Skew & Kurtosis) \n"
+            "-------------------------------------------------------------------------------------\n"
         )
         print(
             tabulate(
