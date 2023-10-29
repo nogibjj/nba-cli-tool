@@ -3,21 +3,20 @@ from nba_api.stats.static import teams  # players
 from nba_api.stats.endpoints import teamgamelog  # shotchartdetail
 from scipy.stats import norm, skew, kurtosis
 import pandas as pd
-from requests.exceptions import ReadTimeout
-from time import sleep
-from mylib.basketballReferenceLinks import BasketBallReferenceLinks
+from basketballReferenceLinks import BasketBallReferenceLinks
 from datetime import datetime, timedelta
 import calendar
 import click
 import re
 import os
-from mylib.transform_load import create_and_load_db
-from mylib.query import query
+from transform_load import create_and_load_db
+from query import query
 import warnings
 from tabulate import tabulate
 
 pd.options.mode.chained_assignment = None  # suppress the warning
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 def get_team_id(teams_dictionary, team_):
@@ -100,11 +99,12 @@ def get_all_games_current_season(season_start_date, season_end_date):
 
     query_str = """SELECT * FROM AllGamesCurrentSeasonDb 
     WHERE Date >= '{}' and Date <= '{}'""".format(
-        start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d"))
+        start_dt.strftime("%Y-%m-%d"), end_dt.strftime("%Y-%m-%d")
+    )
 
     df = query(query_str=query_str, db_name="AllGamesCurrentSeasonDb", mode=2)
     df = df.drop_duplicates()
-    df = df[df["PTS_1"].notna()]
+    df = df[df["PTS_1"] != ""]
 
     return df
 
@@ -124,6 +124,26 @@ def get_team_log_vs_opp(team_full_df, team_2_):
     return team_full_df.loc[team_full_df.opp == team_2_]
 
 
+def get_team_stats_helper(team_stats):
+    team_1_pts_stats = {
+        "mean": team_stats["mean_1"],
+        "std": team_stats["std_1"],
+        "median": team_stats["median_1"],
+        "skew": team_stats["skew_1"],
+        "kurtosis": team_stats["kurtosis"],
+    }
+
+    team_2_pts_stats = {
+        "mean": team_stats["mean_2"],
+        "std": team_stats["std_2"],
+        "median": team_stats["median_2"],
+        "skew": team_stats["skew_2"],
+        "kurtosis": team_stats["kurtosis_2"],
+    }
+
+    return team_1_pts_stats, team_2_pts_stats
+
+
 def get_vs_points(team_1_df, team_2_df):
     df_1 = team_1_df.reset_index(drop=True)
     df_2 = team_2_df.reset_index(drop=True)
@@ -141,11 +161,11 @@ def get_pts_stats(df, last_n_games=1000, mode=1):
     df = df.iloc[:last_n_games, :]
 
     if mode == 1:
-        mean = df.PTS.mean()
-        stdv = df.PTS.std()
-        median = df.PTS.median()
-        skew_ = skew(df.PTS.values, axis=0, bias=True)
-        kurtosis_ = kurtosis(df.PTS.values, axis=0, bias=True)
+        mean = df.PTS_DIFF.mean()
+        stdv = df.PTS_DIFF.std()
+        median = df.PTS_DIFF.median()
+        skew_ = skew(df.PTS_DIFF.values, axis=0, bias=True)
+        kurtosis_ = kurtosis(df.PTS_DIFF.values, axis=0, bias=True)
 
         return {
             "mean": mean,
@@ -154,6 +174,20 @@ def get_pts_stats(df, last_n_games=1000, mode=1):
             "skew": skew_,
             "kurtosis": kurtosis_,
         }
+    elif mode == 2:
+        mean_1 = df.PTS_1_scaled.mean()
+        stdv_1 = df.PTS_1_scaled.std()
+        median_1 = df.PTS_1_scaled.median()
+        skew_1 = skew(df.PTS_1_scaled.values, axis=0, bias=True)
+        kurtosis_1 = kurtosis(df.PTS_1_scaled.values, axis=0, bias=True)
+        mean_2 = df.PTS_2_scaled.mean()
+        stdv_2 = df.PTS_2_scaled.std()
+        median_2 = df.PTS_2_scaled.median()
+        skew_2 = skew(df.PTS_2_scaled.values, axis=0, bias=True)
+        kurtosis_2 = kurtosis(df.PTS_2_scaled.values, axis=0, bias=True)
+        mean_3 = df.PTS_DIFF.mean()
+        stdv_3 = df.PTS_DIFF.std()
+        median_3 = df.PTS_DIFF.median()
     else:
         mean_1 = df.PTS_1.mean()
         stdv_1 = df.PTS_1.std()
@@ -169,31 +203,24 @@ def get_pts_stats(df, last_n_games=1000, mode=1):
         stdv_3 = df.PTS_DIFF.std()
         median_3 = df.PTS_DIFF.median()
 
-        return {
-            "mean_1": mean_1,
-            "std_1": stdv_1,
-            "median_1": median_1,
-            "mean_2": mean_2,
-            "std_2": stdv_2,
-            "median_2": median_2,
-            "mean_diff": mean_3,
-            "std_diff": stdv_3,
-            "median_diff": median_3,
-            "skew_1": skew_1,
-            "kurtosis": kurtosis_1,
-            "skew_2": skew_2,
-            "kurtosis_2": kurtosis_2,
-        }
+    return {
+        "mean_1": mean_1,
+        "std_1": stdv_1,
+        "median_1": median_1,
+        "mean_2": mean_2,
+        "std_2": stdv_2,
+        "median_2": median_2,
+        "mean_diff": mean_3,
+        "std_diff": stdv_3,
+        "median_diff": median_3,
+        "skew_1": skew_1,
+        "kurtosis": kurtosis_1,
+        "skew_2": skew_2,
+        "kurtosis_2": kurtosis_2,
+    }
 
 
-def team_ranker(
-    team_df,
-    season,
-    season_type,
-    team_dict,
-    mode=0,
-    max_date=datetime(year=2050, month=1, day=1),
-):
+def team_ranker(team_df, season):
     cols = [
         "W_PCT",
         "FG_PCT",
@@ -209,32 +236,42 @@ def team_ranker(
         "PTS",
     ]
     metric_wights = [5, 1, 1, 0.5, 0.5, 2, 2, 1.5, 1.5, 1.5, 2, 1]
-    res = pd.DataFrame()
-    index_ = []
-    team_log_dict = {}
-    for team_id in team_df.id.values:
-        run = True
-        while run:
-            try:
-                team_name = team_df.loc[team_df.id == team_id]["abbreviation"].iloc[0]
-                # print(team_name)
-                if mode == 0:
-                    df = get_team_game_log(team_id, season, season_type)
-                    team_log_dict[team_name] = df
-                    df = df[cols]
-                else:
-                    df = team_dict[team_name]
-                    df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"])
-                    df = df.loc[df["GAME_DATE"] <= max_date]
 
-                df = df.mean()
-                res = pd.concat([res, df], axis=1)
-                index_.append(team_name)
-                run = False
-            except ReadTimeout:
-                sleep(60)
+    # Getting all season stats
+    dfs = pd.read_html(
+        BasketBallReferenceLinks().season_stats.format(season=season[-2:])
+    )
 
-    res.columns = index_
+    # Getting Win Percentage
+    df = dfs[0]
+    df["Team"] = df["Eastern Conference"].str.slice(0, -4).str.strip()
+    df_2 = dfs[1]
+    df_2["Team"] = df_2["Western Conference"].str.slice(0, -4).str.strip()
+    df = pd.concat([df, df_2])
+    df = df.rename(columns={"W/L%": "W_PCT"})
+    df = df[["Team", "W_PCT"]]
+
+    # Getting all other stats
+    df_3 = dfs[4]
+    df_3 = df_3.rename(
+        columns={
+            "FG%": "FG_PCT",
+            "3P%": "FG3_PCT",
+            "FT%": "FT_PCT",
+            "ORB": "OREB",
+            "DRB": "DREB",
+        }
+    )
+    df = df.merge(df_3, on="Team", how="left")
+    df = df.merge(
+        team_df[["abbreviation", "full_name"]],
+        left_on="Team",
+        right_on="full_name",
+        how="left",
+    )[cols + ["abbreviation"]]
+    df.index = df.abbreviation
+    df = df.drop(columns=["abbreviation"]).T
+
     easter_teams = [
         "MIA",
         "MIL",
@@ -269,8 +306,9 @@ def team_ranker(
         "OKC",
         "HOU",
     ]
-    easter_teams = res[easter_teams]
-    western_teams = res[western_teams]
+
+    easter_teams = df[easter_teams]
+    western_teams = df[western_teams]
 
     easter_teams = (
         easter_teams.div(easter_teams.max(axis=1), axis=0)
@@ -286,25 +324,10 @@ def team_ranker(
     )
     western_teams = (western_teams / western_teams.abs().max()) * 100 * 0.98
 
-    return easter_teams, western_teams, team_log_dict
+    return easter_teams, western_teams
 
 
-def get_stats(
-    team_1, team_2, team_log_dict_, to_merge_df, alternate_source, team_names
-):
-    team_1_log = team_log_dict_[team_1]
-    team_2_log = team_log_dict_[team_2]
-    team_1_log = team_1_log.merge(
-        to_merge_df, left_on="opp", right_on="index", how="left"
-    )
-    team_2_log = team_2_log.merge(
-        to_merge_df, left_on="opp", right_on="index", how="left"
-    )
-    team_1_opp = get_team_log_vs_opp(team_1_log, team_2)
-    team_2_opp = get_team_log_vs_opp(team_2_log, team_1)
-    team_1_log["PTS"] = (team_1_log["PTS"] * team_1_log[0]) / 100
-    team_2_log["PTS"] = (team_2_log["PTS"] * team_2_log[0]) / 100
-    vs_df = get_vs_points(team_1_opp, team_2_opp)
+def get_stats(team_1, team_2, to_merge_df, alternate_source, team_names):
 
     team_1_full_name = team_names.loc[team_names.abbreviation == team_1].full_name.iloc[
         0
@@ -324,8 +347,13 @@ def get_stats(
     ]
 
     try:
+        # todo: condier team name changes
         vs_df_2 = vs_df_2.rename(columns={"Date": "GAME_DATE"})
-        vs_df_2["PTS_1"] = vs_df_2.apply(
+        points_scale_t1 = to_merge_df.loc[to_merge_df.abbreviation == team_1][0].iloc[0]
+        points_scale_t2 = to_merge_df.loc[to_merge_df.abbreviation == team_2][0].iloc[0]
+
+        # Have to call PTS twice because of the way the data is structured
+        vs_df_2["PTS_11"] = vs_df_2.apply(
             lambda r: r["PTS_1"] if r["Home_Neutral"] == team_1_full_name else r["PTS"],
             axis=1,
         )
@@ -333,7 +361,12 @@ def get_stats(
             lambda r: r["PTS_1"] if r["Home_Neutral"] == team_2_full_name else r["PTS"],
             axis=1,
         )
+        vs_df_2["PTS_1"] = vs_df_2["PTS_11"]
+        vs_df_2.drop(columns=["PTS_11"], inplace=True)
+
         vs_df_2["PTS_DIFF"] = vs_df_2["PTS_1"] - vs_df_2["PTS_2"]
+        vs_df_2["PTS_1_scaled"] = vs_df_2["PTS_1"] * (points_scale_t1 / 100)
+        vs_df_2["PTS_2_scaled"] = vs_df_2["PTS_2"] * (points_scale_t2 / 100)
         vs_df_2["WL_1"] = vs_df_2.apply(
             lambda r: "W" if r["PTS_DIFF"] > 0 else "L", axis=1
         )
@@ -342,18 +375,19 @@ def get_stats(
         )
         vs_df_2["PTS_DIFF"] = vs_df_2["PTS_DIFF"].abs()
         vs_df_2["GAME_DATE"] = pd.to_datetime(vs_df_2.GAME_DATE)
-        vs_df["GAME_DATE"] = pd.to_datetime(vs_df.GAME_DATE)
+        # vs_df["GAME_DATE"] = pd.to_datetime(vs_df.GAME_DATE)
         vs_df_2["MATCHUP"] = vs_df_2["Visitor_Neutral"] + "@" + vs_df_2["Home_Neutral"]
-        vs_df_2 = vs_df_2.loc[~vs_df_2.GAME_DATE.isin(vs_df.GAME_DATE.values)][
-            vs_df_2["PTS"].notna()
-        ]
+        # vs_df_2 = vs_df_2.loc[~vs_df_2.GAME_DATE.isin(vs_df.GAME_DATE.values)][
+        #     vs_df_2["PTS"].notna()
+        # ]
+        vs_df_2 = vs_df_2[vs_df_2["PTS"].notna()]
         vs_df_2 = vs_df_2.sort_values(by="GAME_DATE", ascending=False)
 
-        vs_df = pd.concat([vs_df_2[vs_df.columns.values], vs_df], axis=0)
-        vs_pts_stats = get_pts_stats(vs_df, mode=2)
+        # vs_df = pd.concat([vs_df_2[vs_df.columns.values], vs_df], axis=0)
+        vs_pts_stats = get_pts_stats(vs_df_2, mode=1)
 
-        dm = vs_pts_stats["mean_diff"]
-        ds = vs_pts_stats["std_diff"]
+        dm = vs_pts_stats["mean"]
+        ds = vs_pts_stats["std"]
         win_margin_vs = [
             dm - (3 * ds),
             dm - (2 * ds),
@@ -364,6 +398,7 @@ def get_stats(
             dm + (3 * ds),
         ]
 
+        vs_pts_stats = get_pts_stats(vs_df_2, mode=3)
         dm = vs_pts_stats["mean_1"] + vs_pts_stats["mean_2"]
         ds = vs_pts_stats["std_1"] + vs_pts_stats["std_2"]
         total_points_vs = [
@@ -380,14 +415,20 @@ def get_stats(
         total_points_vs = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
         vs_pts_stats = pd.DataFrame()
 
-    team_1_pts_stats = get_pts_stats(team_1_log)
-    team_2_pts_stats = get_pts_stats(team_2_log)
-    team_1_pts_stats_last_5 = get_pts_stats(team_1_log, last_n_games=5)
-    team_2_pts_stats_last_5 = get_pts_stats(team_2_log, last_n_games=5)
-    team_1_pts_stats_last_10 = get_pts_stats(team_1_log, last_n_games=10)
-    team_2_pts_stats_last_10 = get_pts_stats(team_2_log, last_n_games=10)
-    team_1_pts_stats_last_15 = get_pts_stats(team_1_log, last_n_games=15)
-    team_2_pts_stats_last_15 = get_pts_stats(team_2_log, last_n_games=15)
+    team_stats = get_pts_stats(vs_df_2, mode=2)
+    team_1_pts_stats, team_2_pts_stats = get_team_stats_helper(team_stats)
+    team_stats_last_5 = get_pts_stats(vs_df_2, last_n_games=5, mode=2)
+    team_1_pts_stats_last_5, team_2_pts_stats_last_5 = get_team_stats_helper(
+        team_stats_last_5
+    )
+    team_stats_last_10 = get_pts_stats(vs_df_2, last_n_games=10, mode=2)
+    team_1_pts_stats_last_10, team_2_pts_stats_last_10 = get_team_stats_helper(
+        team_stats_last_10
+    )
+    team_stats_last_15 = get_pts_stats(vs_df_2, last_n_games=15, mode=2)
+    team_1_pts_stats_last_15, team_2_pts_stats_last_15 = get_team_stats_helper(
+        team_stats_last_15
+    )
 
     dm = team_1_pts_stats_last_5["mean"] + team_2_pts_stats_last_5["mean"]
     ds = team_1_pts_stats_last_5["std"] + team_2_pts_stats_last_5["std"]
@@ -452,10 +493,7 @@ def get_stats(
 
     return (
         stats,
-        vs_df,
         vs_pts_stats,
-        team_1_log,
-        team_2_log,
         team_1_pts_stats,
         team_1_pts_stats_last_15,
         team_1_pts_stats_last_10,
@@ -464,6 +502,7 @@ def get_stats(
         team_2_pts_stats_last_15,
         team_2_pts_stats_last_10,
         team_2_pts_stats_last_5,
+        vs_df_2,
     )
 
 
@@ -490,27 +529,27 @@ def validate_season(ctx, param, value):
     "--date",
     "-d",
     type=click.DateTime(formats=["%Y-%m-%d"]),
-    default="2022-10-18",
+    default="2023-10-27",
     help="Date to run the statistics for.",
 )
 @click.option(
     "--historical_start_date",
     "-hsd",
-    default="2022-10-01",
+    default="2023-10-01",
     type=click.DateTime(formats=["%Y-%m-%d"]),
     help="Start date for historical game data.",
 )
 @click.option(
     "--historical_end_date",
     "-hed",
-    default="2023-3-30",
+    default="2023-10-30",
     type=click.DateTime(formats=["%Y-%m-%d"]),
     help="End date for historical game data",
 )
 @click.option(
     "--season",
     "-s",
-    default="2022-23",
+    default="2023-24",
     help="Season to run the statistics for. (YYYY-YY)",
     type=click.STRING,
     callback=validate_season,
@@ -527,15 +566,13 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         historical_end_date.strftime("%Y-%m-%d"),
     )
     seaso_n_ = season
-    season__type_ = ["Regular Season", "Playoffs"]
 
     teams_ = teams.get_teams()
     teams__df = pd.DataFrame.from_dict(teams_)
     team_abbreviation = teams__df[["full_name", "abbreviation"]]
 
-    easter__teams_, western__teams_, team__log_dict_ = team_ranker(
-        teams__df, seaso_n_, season__type_, {}
-    )
+    # todo: can use SQLite here to increase efficiency
+    easter__teams_, western__teams_ = team_ranker(teams__df, seaso_n_)
 
     to_merge__df = pd.concat([easter__teams_, western__teams_])
     to_merge__df = (to_merge__df / 98) * 100
@@ -554,27 +591,10 @@ def run_stats(date, historical_start_date, historical_end_date, season):
     for game in games:
         team__1 = game[0]
         team__2 = game[1]
-        # team_1__id = get_team_id(teams__df, team__1)
-        # team_2__id = get_team_id(teams__df, team__2)
 
-        (
-            sts,
-            vdf,
-            vps,
-            t1,
-            t2,
-            t1ps,
-            t1p15,
-            t1p10,
-            t1p5,
-            t2ps,
-            t2p15,
-            t2p10,
-            t2p5,
-        ) = get_stats(
+        (sts, vps, t1ps, t1p15, t1p10, t1p5, t2ps, t2p15, t2p10, t2p5, vdf) = get_stats(
             team__1,
             team__2,
-            team__log_dict_,
             to_merge__df,
             basketball_ref_games,
             teams__df,
@@ -811,14 +831,16 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         print(
             tabulate(scaled_points_stats_df.round(2), headers="keys", tablefmt="pretty")
         )
-        print("\n Head to Head Score Difference Probability "\
-              "(Account for Skew & Kurtosis) \n")
+        print(
+            "\n Head to Head Score Difference Probability "
+            "(Account for Skew & Kurtosis) \n"
+        )
         print(
             tabulate(
                 score_diff_probability_df.round(2), headers="keys", tablefmt="pretty"
             )
         )
-    
+
     return resy
 
 
