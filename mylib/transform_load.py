@@ -45,7 +45,7 @@ def create_and_load_db(
 
     if not sql_conn:
         conn = sqlite3.connect(f"{db_name}")
-        print(f"Database {db_name} created.")
+        print(f"Database {db_name} connectedd.")
     else:
         conn = sql_conn
 

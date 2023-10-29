@@ -16,6 +16,7 @@ from mylib.transform_load import create_and_load_db
 from mylib.query import query
 import warnings
 from tabulate import tabulate
+import urllib
 
 pd.options.mode.chained_assignment = None  # suppress the warning
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -43,14 +44,26 @@ def get_all_games_cs_helper(start_dt, end_dt, stat_link):
     }
 
     cur_dt = start_dt
+    # probably a better way to do this
     if cur_dt.month > 9:
         year_ = cur_dt.year + 1
     else:
         year_ = cur_dt.year
     df = pd.DataFrame()
     while cur_dt <= end_dt:
+        0
+        if cur_dt.month > 9:
+            if year_ == cur_dt.year:
+                year_ = cur_dt.year + 1
+        else:
+            year_ = cur_dt.year
+
         link = stat_link.format(year=year_, month=month_dict[cur_dt.month].lower())
-        df = pd.concat([df, pd.read_html(link)[0]])
+        try:
+            df = pd.concat([df, pd.read_html(link)[0]])
+        except urllib.error.HTTPError:
+            print("No games for {} {}".format(month_dict[cur_dt.month], year_))
+
         days_in_month = calendar.monthrange(year_, cur_dt.month)[1]
         cur_dt += timedelta(days_in_month)
 
@@ -94,19 +107,23 @@ def get_all_games_current_season(season_start_date, season_end_date):
         ).iloc[0][0]
         min_date = datetime.strptime(min_date, "%Y-%m-%d")
 
-        if end_dt < max_date:
-            pass
-        elif start_dt <= max_date:
-            start_dt = max_date - timedelta(days=1)
+        # todo: Guarantee missing dates are handled properly
+        change = True
+        if (start_dt > min_date) and (end_dt < max_date):
+            change = False
+        elif start_dt > max_date:
+            start_dt = max_date
+        elif end_dt < min_date:
+            end_dt = min_date
 
-        # todo: worry about sparse dates (intermittent)
-        df = get_all_games_cs_helper(start_dt, end_dt, stat_link)
-        df.to_csv("AllGamesCurrentSeasonDb.csv", index=False)
-        create_and_load_db(
-            dataset="AllGamesCurrentSeasonDb.csv",
-            db_name="AllGamesCurrentSeasonDb",
-            mode="a",
-        )
+        if change:
+            df = get_all_games_cs_helper(start_dt, end_dt, stat_link)
+            df.to_csv("AllGamesCurrentSeasonDb.csv", index=False)
+            create_and_load_db(
+                dataset="AllGamesCurrentSeasonDb.csv",
+                db_name="AllGamesCurrentSeasonDb",
+                mode="a",
+            )
 
     query_str = """SELECT * FROM AllGamesCurrentSeasonDb 
     WHERE Date >= '{}' and Date <= '{}'""".format(
@@ -651,6 +668,8 @@ def run_stats(date, historical_start_date, historical_end_date, season):
         historical_start_date.strftime("%Y-%m-%d"),
         historical_end_date.strftime("%Y-%m-%d"),
     )
+
+    print(basketball_ref_games.head(), historical_end_date, historical_end_date)
 
     games = get_games_on_date(
         games_df=basketball_ref_games,
