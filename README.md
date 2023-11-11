@@ -27,7 +27,7 @@ nbastats --help
 ```
 # Get NBA Stats for 2022-11-16 using matches from the 2022-23 Season
 # Scaled statistics were calculated using game between 2022-10-01 & 2022-03-30
-nbastats -d 2022-11-16 -hsd 2022-10-01 -hed 2023-03-30
+nbastats -d 2022-11-16 -hsd 2022-10-01 -hed 2023-03-30 --season 2022-23
 ```
 
 ![Alt text](https://user-images.githubusercontent.com/36940292/278879474-4f1af56e-23ba-4f82-a95b-d20a27643e20.png)
