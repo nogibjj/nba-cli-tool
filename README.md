@@ -3,7 +3,7 @@
 [![CI](https://github.com/nogibjj/nba-cli-tool/actions/workflows/cicd.yml/badge.svg)](https://github.com/nogibjj/nba-cli-tool/actions/workflows/cicd.yml)
 
 
-![PyPI - PyPI Monthly Downloads](https://img.shields.io/pypi/dm/nba-stats-dragon)
+[![PyPI - PyPI Monthly Downloads](https://img.shields.io/pypi/dm/nba-stats-dragon)](https://pypistats.org/packages/nba-stats-dragon)
 
 
 This project is a demonstration of a robust Command Line Interface (CLI) tool designed for effortless data handling and statistical analysis in NBA sports betting. The CLI can be easily installed using PIP, allowing users to swiftly access high-quality statistics for upcoming or past NBA basketball games. During each run, the CLI prioritizes the update of a local Sqlite Database by adding only missing information, thereby substantially enhancing processing efficiency. It subsequently identifies all scheduled games for the specified date and generates valuable statistics that can inform sound NBA sports trading choices.
